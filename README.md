@@ -34,12 +34,6 @@ Daten kommen statistische Modelle und maschinelle Lernverfahren zum Einsatz.
 *in a word, our topic wants to use ML and the big data from product line to train a ML prediction model, to predict the transfer efficiency of the solder paste*
 
 
-*Supervior, Department and University:*
-- University [FAU](https://www.fau.de/)(Friedrich-Alexander-Universität Erlangen-Nürnberg)
-- [Lehrstuhl FAPS](https://www.faps.fau.de/) (Fertigungsautomatisierung und Produktionssystematik)
-- Prof. Dr.-Ing Jörg Franke
-- M.Sc. Felix Häußler
-
 *Backup for literatur:*
 - Google Scholar
 - Sci-hub
