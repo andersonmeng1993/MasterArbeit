@@ -1,0 +1,161 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn import svm,preprocessing,metrics
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier,MLPRegressor
+
+from sklearn import svm
+#from sklearn.multioutput import MultiOutputClassifier # for multi-label --> it is for label more than one columns, so not for us
+
+#from sklearn.gaussian_process import GaussianProcessClassifier
+#from sklearn.ensemble import GradientBoostingClassifier
+#from sklearn.gaussian_process.kernels import RBF # for GaussianProcessClassifier
+
+# the libraries to save the model after training
+import pickle
+from joblib import dump,load
+
+from sklearn.metrics import accuracy_score,recall_score,precision_score,f1_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+
+
+# read and select the date (just when date is too big)
+train = pd.read_csv('data_merged.CSV')
+print('train.shape: {}'.format(train.shape))
+train = train.iloc[0:150000,:]
+
+# print the distribution of output, helping to observe the date
+plt.figure(figsize=(12,8))
+plt.title('Die Verteilung der gesamten Daten (nach Preprocessing)')
+sns.distplot(train['Volume (%)'],color='limegreen', bins=75)
+plt.xlabel('Transfereffizienz (%)')
+#plt.legend()
+#plt.savefig('Die Verteilung der gesamten Daten (nach Preprocessing).png',dpi=350)
+
+
+# the most important step, label for classification
+## SVC labeling
+
+train.loc[train['Volume (%)']<50,'SVC_label'] = 1
+
+train.loc[(train['Volume (%)']>=50) & (train['Volume (%)']<65),'SVC_label'] = 2
+
+train.loc[(train['Volume (%)']>=65) & (train['Volume (%)']<70),'SVC_label'] = 3
+train.loc[(train['Volume (%)']>=70) & (train['Volume (%)']<72.5),'SVC_label'] = 4
+train.loc[(train['Volume (%)']>=72.5) & (train['Volume (%)']<75),'SVC_label'] = 5
+train.loc[(train['Volume (%)']>=75) & (train['Volume (%)']<77.5),'SVC_label'] = 6
+train.loc[(train['Volume (%)']>=77.5) & (train['Volume (%)']<80),'SVC_label'] = 7
+train.loc[(train['Volume (%)']>=80) & (train['Volume (%)']<82.5),'SVC_label'] = 8
+train.loc[(train['Volume (%)']>=82.5) & (train['Volume (%)']<85),'SVC_label'] = 9
+train.loc[(train['Volume (%)']>=85) & (train['Volume (%)']<87.5),'SVC_label'] = 10
+train.loc[(train['Volume (%)']>=87.5) & (train['Volume (%)']<90),'SVC_label'] = 11
+train.loc[(train['Volume (%)']>=90) & (train['Volume (%)']<92.5),'SVC_label'] = 12
+train.loc[(train['Volume (%)']>=92.5) & (train['Volume (%)']<95),'SVC_label'] = 13
+train.loc[(train['Volume (%)']>=95) & (train['Volume (%)']<100),'SVC_label'] = 14
+train.loc[(train['Volume (%)']>=100) & (train['Volume (%)']<105),'SVC_label'] = 15
+train.loc[(train['Volume (%)']>=105) & (train['Volume (%)']<110),'SVC_label'] = 16
+train.loc[(train['Volume (%)']>=110) & (train['Volume (%)']<115),'SVC_label'] = 17
+train.loc[(train['Volume (%)']>=115) & (train['Volume (%)']<120),'SVC_label'] = 18
+train.loc[(train['Volume (%)']>=120),'SVC_label'] = 19
+
+# print value_counts, to adjust the threshold and let each label's date is almost the same, keep sample balancement
+train['SVC_label'].value_counts()
+
+
+
+# define X and y, when necessary preprocessed the input X
+
+X = train[['Size Area (um2)', 'Actual_Druck(Kg)', 'Actual Temperature (oC)',
+       'Actual Humidity (%)', 'Rear Print Speed (mm/sec)',
+       'Actual Separation Speed (mm/s)']]
+#X = preprocessing.MinMaxScaler().fit_transform(X)
+X = preprocessing.minmax_scale(X,feature_range=(0,1))
+
+
+'''
+# check the result after preprocessed
+X_df = pd.DataFrame(X)
+X_df.describe()
+
+'''
+
+## training start and print classification report
+## grid research CV --> find the best parameter
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.4, random_state=0)
+
+tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
+                     'C': [1, 10, 100, 1000]} ]
+
+
+scores = ['precision', 'recall']
+
+for score in scores:
+    print("# Tuning hyper-parameters for %s" % score)
+    print()
+
+    clf = GridSearchCV(
+        svm.SVC(), tuned_parameters, scoring='%s_macro' % score
+    )
+    clf.fit(X_train, y_train)
+
+    print("Best parameters set found on development set:")
+    print()
+    print(clf.best_params_)
+    print()
+    print("Grid scores on development set:")
+    print()
+    means = clf.cv_results_['mean_test_score']
+    stds = clf.cv_results_['std_test_score']
+    for mean, std, params in zip(means, stds, clf.cv_results_['params']):
+        print("%0.3f (+/-%0.03f) for %r"
+              % (mean, std * 2, params))
+    print()
+
+    print("Detailed classification report:")
+    print()
+    print("The model is trained on the full development set.")
+    print("The scores are computed on the full evaluation set.")
+    print()
+    y_true, y_pred = y_test, clf.predict(X_test)
+    print(classification_report(y_true, y_pred))
+    print()
+    
+    
+#####################################################
+
+### manuel testing
+
+#####################################################
+
+# using the printed best hyperparameter to get the score
+clf_best = svm.SVC(gamma=0.001,C=1000,kernel='rbf').fit(X_train,y_train)
+print('score: {}'.format(clf_best.score(X_test,y_test)))
+
+##############
+# export the y_pred and y_test
+y_pred = clf_best.predict(X_test)
+y_test.to_excel('y_test.xlsx')
+y_pred = pd.DataFrame(y_pred)
+y_pred.to_excel('y_pred.xlsx')
+
+#### manuelly put y_pred.xlsx and y_test.xlsx together
+#### and read
+
+y_pred_vs_real = pd.read_excel('y_pred_vs_real.xlsx')
+# calculate how many are rightly predicted or not
+for i in y_pred_vs_real.index:
+    if (y_pred_vs_real.iloc[i,1] == y_pred_vs_real.iloc[i,2]):
+        y_pred_vs_real.loc[i,'true_or_false'] = 1
+    else:
+        y_pred_vs_real.loc[i,'true_or_false'] = 0    
+    
+##################
+# save the trained model
+
+dump(clf_best,'svc_150k_gamma001_C1000.joblib')
